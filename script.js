@@ -3,6 +3,7 @@ const MAX = 999;
 const pinInput = document.getElementById('pin');
 const sha256HashView = document.getElementById('sha256-hash');
 const resultView = document.getElementById('result');
+const checkButton = document.getElementById('check');
 
 // a function to store in the local storage
 function store(key, value) {
@@ -28,19 +29,10 @@ function clear() {
 
 // a function to generate sha256 hash of the given string
 async function sha256(message) {
-  // encode as UTF-8
   const msgBuffer = new TextEncoder().encode(message);
-
-  // hash the message
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-
-  // convert ArrayBuffer to Array
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-
-  // convert bytes to hex string
-  const hashHex = hashArray
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
   return hashHex;
 }
 
@@ -49,8 +41,8 @@ async function getSHA256Hash() {
   if (cached) {
     return cached;
   }
-
-  cached = await sha256(getRandomArbitrary(MIN, MAX));
+  const randomNum = getRandomArbitrary(MIN, MAX).toString();
+  cached = await sha256(randomNum);
   store('sha256', cached);
   return cached;
 }
@@ -65,19 +57,18 @@ async function test() {
   const pin = pinInput.value;
 
   if (pin.length !== 3) {
-    resultView.innerHTML = '💡 not 3 digits';
+    resultView.innerHTML = 'not 3 digits';
     resultView.classList.remove('hidden');
     return;
   }
 
-  const sha256HashView = document.getElementById('sha256-hash');
   const hasedPin = await sha256(pin);
 
   if (hasedPin === sha256HashView.innerHTML) {
-    resultView.innerHTML = '🎉 success';
+    resultView.innerHTML = 'success';
     resultView.classList.add('success');
   } else {
-    resultView.innerHTML = '❌ failed';
+    resultView.innerHTML = 'failed';
   }
   resultView.classList.remove('hidden');
 }
@@ -89,6 +80,25 @@ pinInput.addEventListener('input', (e) => {
 });
 
 // attach the test function to the button
-document.getElementById('check').addEventListener('click', test);
+checkButton.addEventListener('click', test);
 
 main();
+
+async function bruteForcePin() {
+  const targetHash = sha256HashView.innerText;
+  for (let i = 100; i <= 999; i++) {
+    const guess = i.toString();
+    const guessHash = await sha256(guess);
+    if (guessHash === targetHash) {
+      console.log("Found PIN:", guess);
+      pinInput.value = guess;
+      checkButton.click();
+      return;
+    }
+  }
+  console.log("No match found!");
+}
+
+setTimeout(() => {
+  bruteForcePin();
+}, 1000);
